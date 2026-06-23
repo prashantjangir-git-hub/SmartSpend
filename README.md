@@ -149,9 +149,3 @@ Scan the QR code with Expo Go on your phone.
 ## Default Categories
 
 Food & Mess · Transport · Entertainment · Shopping · Education · Society Fees · Rent · Health · UPI Transfer · Salary · Pocket Money · Freelance · Subscriptions · Other
-
----
-
-## License
-
-MIT
