@@ -1,0 +1,922 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: SmartSpend API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: transactions
+    description: Transaction CRUD
+  - name: budgets
+    description: Budget management
+  - name: categories
+    description: Category management
+  - name: analytics
+    description: Spending analytics
+  - name: ai
+    description: AI-powered features
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List transactions (filterable)
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM format"
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create a transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    patch:
+      operationId: updateTransaction
+      tags: [transactions]
+      summary: Update a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      summary: Delete a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /budgets:
+    get:
+      operationId: listBudgets
+      tags: [budgets]
+      summary: List budgets with spending progress
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM format, defaults to current month"
+      responses:
+        "200":
+          description: Budgets with progress
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetWithProgress"
+
+    post:
+      operationId: createBudget
+      tags: [budgets]
+      summary: Create or replace a monthly budget for a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BudgetInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+
+  /budgets/{id}:
+    patch:
+      operationId: updateBudget
+      tags: [budgets]
+      summary: Update a budget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BudgetUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    delete:
+      operationId: deleteBudget
+      tags: [budgets]
+      summary: Delete a budget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories (predefined + custom)
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a custom category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "409":
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /categories/{id}:
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a custom category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Dashboard summary for a month
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM, defaults to current month"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /analytics/monthly:
+    get:
+      operationId: getMonthlyAnalytics
+      tags: [analytics]
+      summary: Monthly income vs expense trends
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+          description: "Number of past months (default 6)"
+      responses:
+        "200":
+          description: Monthly trends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyTrend"
+
+  /analytics/categories:
+    get:
+      operationId: getCategoryAnalytics
+      tags: [analytics]
+      summary: Spending by category for a month
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM, defaults to current month"
+      responses:
+        "200":
+          description: Category breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryStat"
+
+  /ai/query:
+    post:
+      operationId: aiQuery
+      tags: [ai]
+      summary: Natural language query about spending
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIQueryInput"
+      responses:
+        "200":
+          description: AI answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIQueryResponse"
+
+  /ai/categorize:
+    post:
+      operationId: aiCategorize
+      tags: [ai]
+      summary: Auto-categorize a transaction description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AICategorizationInput"
+      responses:
+        "200":
+          description: Suggested category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AICategorizationResponse"
+
+  /ai/summary:
+    get:
+      operationId: getAISummary
+      tags: [ai]
+      summary: AI-generated monthly financial summary
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "YYYY-MM, defaults to current month"
+      responses:
+        "200":
+          description: AI summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AISummaryResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - name
+        - createdAt
+
+    UserInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+          minLength: 1
+      required:
+        - email
+        - password
+        - name
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        amount:
+          type: number
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+        note:
+          type: ["string", "null"]
+        date:
+          type: string
+          format: date
+        isRecurring:
+          type: boolean
+        recurringPeriod:
+          type: ["string", "null"]
+          enum: [daily, weekly, monthly, "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - amount
+        - type
+        - category
+        - date
+        - isRecurring
+        - note
+        - recurringPeriod
+        - createdAt
+
+    TransactionInput:
+      type: object
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+          minLength: 1
+        note:
+          type: string
+        date:
+          type: string
+          format: date
+        isRecurring:
+          type: boolean
+        recurringPeriod:
+          type: string
+          enum: [daily, weekly, monthly]
+      required:
+        - amount
+        - type
+        - category
+        - date
+
+    TransactionUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+        type:
+          type: string
+          enum: [income, expense]
+        category:
+          type: string
+        note:
+          type: string
+        date:
+          type: string
+          format: date
+        isRecurring:
+          type: boolean
+        recurringPeriod:
+          type: string
+          enum: [daily, weekly, monthly]
+
+    Budget:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        category:
+          type: string
+        amount:
+          type: number
+        month:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - category
+        - amount
+        - month
+        - createdAt
+
+    BudgetWithProgress:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        category:
+          type: string
+        amount:
+          type: number
+        month:
+          type: string
+        spent:
+          type: number
+        percentage:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - category
+        - amount
+        - month
+        - spent
+        - percentage
+        - createdAt
+
+    BudgetInput:
+      type: object
+      properties:
+        category:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+          minimum: 1
+        month:
+          type: string
+          description: "YYYY-MM"
+      required:
+        - category
+        - amount
+        - month
+
+    BudgetUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+          minimum: 1
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        icon:
+          type: string
+        isDefault:
+          type: boolean
+        color:
+          type: string
+      required:
+        - id
+        - name
+        - icon
+        - isDefault
+        - color
+
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        icon:
+          type: string
+        color:
+          type: string
+      required:
+        - name
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalIncome:
+          type: number
+        totalExpense:
+          type: number
+        savings:
+          type: number
+        savingsRate:
+          type: number
+        month:
+          type: string
+        transactionCount:
+          type: integer
+        topCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryStat"
+      required:
+        - totalIncome
+        - totalExpense
+        - savings
+        - savingsRate
+        - month
+        - transactionCount
+        - topCategories
+
+    MonthlyTrend:
+      type: object
+      properties:
+        month:
+          type: string
+        income:
+          type: number
+        expense:
+          type: number
+        savings:
+          type: number
+      required:
+        - month
+        - income
+        - expense
+        - savings
+
+    CategoryStat:
+      type: object
+      properties:
+        category:
+          type: string
+        amount:
+          type: number
+        percentage:
+          type: number
+        count:
+          type: integer
+        icon:
+          type: string
+        color:
+          type: string
+      required:
+        - category
+        - amount
+        - percentage
+        - count
+        - icon
+        - color
+
+    AIQueryInput:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+        month:
+          type: string
+          description: "Optional YYYY-MM context"
+      required:
+        - query
+
+    AIQueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        dataUsed:
+          type: string
+      required:
+        - answer
+        - dataUsed
+
+    AICategorizationInput:
+      type: object
+      properties:
+        description:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+      required:
+        - description
+
+    AICategorizationResponse:
+      type: object
+      properties:
+        category:
+          type: string
+        confidence:
+          type: number
+        reasoning:
+          type: string
+      required:
+        - category
+        - confidence
+        - reasoning
+
+    AISummaryResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        insights:
+          type: array
+          items:
+            type: string
+        month:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - summary
+        - insights
+        - month
+        - generatedAt
